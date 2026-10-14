@@ -1,44 +1,46 @@
 import { NextResponse } from 'next/server'
-
-// Mock data storage (in-memory for demo)
-let comics: any[] = []
+import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const comic = comics.find(c => c.id === parseInt(params.id))
+  try {
+    const { id } = await params
+    const comic = await prisma.comic.findUnique({
+      where: { id: parseInt(id) }
+    })
 
-  if (!comic) {
-    return NextResponse.json({ error: 'Comic not found' }, { status: 404 })
+    if (!comic) {
+      return NextResponse.json({ error: 'Comic not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(comic)
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch comic' }, { status: 500 })
   }
-
-  return NextResponse.json(comic)
 }
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const { title, volume, creator, photo } = body
 
-    const index = comics.findIndex(c => c.id === parseInt(params.id))
-    if (index === -1) {
-      return NextResponse.json({ error: 'Comic not found' }, { status: 404 })
-    }
+    const comic = await prisma.comic.update({
+      where: { id: parseInt(id) },
+      data: {
+        title,
+        volume,
+        creator,
+        photo
+      }
+    })
 
-    comics[index] = {
-      ...comics[index],
-      title,
-      volume,
-      creator,
-      photo,
-      updatedAt: new Date().toISOString()
-    }
-
-    return NextResponse.json(comics[index])
+    return NextResponse.json(comic)
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update comic' }, { status: 500 })
   }
@@ -46,15 +48,14 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const index = comics.findIndex(c => c.id === parseInt(params.id))
-    if (index === -1) {
-      return NextResponse.json({ error: 'Comic not found' }, { status: 404 })
-    }
+    const { id } = await params
+    await prisma.comic.delete({
+      where: { id: parseInt(id) }
+    })
 
-    comics.splice(index, 1)
     return NextResponse.json({ message: 'Comic deleted successfully' })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete comic' }, { status: 500 })

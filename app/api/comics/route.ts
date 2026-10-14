@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
-
-// Mock data storage (in-memory for demo)
-let comics: any[] = []
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
-  return NextResponse.json(comics)
+  try {
+    const comics = await prisma.comic.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
+    return NextResponse.json(comics)
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch comics' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
@@ -16,17 +21,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const newComic = {
-      id: Date.now(),
-      title,
-      volume,
-      creator,
-      photo,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+    const newComic = await prisma.comic.create({
+      data: {
+        title,
+        volume,
+        creator,
+        photo
+      }
+    })
 
-    comics.push(newComic)
     return NextResponse.json(newComic, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create comic' }, { status: 500 })
